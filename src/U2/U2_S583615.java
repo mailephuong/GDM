@@ -78,10 +78,10 @@ public class U2_S583615 implements PlugIn {
         private JSlider Kontrast;
         private JSlider Saettigung;
         private JSlider Hue;
-        private double brightness;
-        private double kontrast;
-        private double saettigung;
-        private double hue;
+        private double brightness=0;
+        private double kontrast=1;
+        private double saettigung=1;
+        private double hue=0;
 
         CustomWindow(ImagePlus imp, ImageCanvas ic) {
             super(imp, ic);
@@ -93,9 +93,9 @@ public class U2_S583615 implements PlugIn {
             Panel panel = new Panel();
 
             panel.setLayout(new GridLayout(4, 1));
-            jSliderBrightness = makeTitledSilder("Helligkeit", 0, 256, 100);
-            Kontrast = makeTitledSilder("Kontrast", 0, 10, 1);
-            Saettigung = makeTitledSilder("Sättigung", 0, 5, 1);
+            jSliderBrightness = makeTitledSilder("Helligkeit", -128, 128, 0);
+            Kontrast = makeTitledSilder("Kontrast", 0, 10, 5);
+            Saettigung = makeTitledSilder("Sättigung", 0, 9, 4);
             Hue = makeTitledSilder("Hue", 0, 360, 1);
             panel.add(jSliderBrightness);
             panel.add(Kontrast);
@@ -134,18 +134,20 @@ public class U2_S583615 implements PlugIn {
             JSlider slider = (JSlider)e.getSource();
 
             if (slider == jSliderBrightness) {
-                brightness = slider.getValue()-128;
+                brightness = slider.getValue();
                 String str = "Helligkeit " + brightness;
                 setSliderTitle(jSliderBrightness, str);
             }
 
             if (slider == Kontrast) {
-                kontrast = slider.getValue();
-                String str = "Sättigung " + kontrast;
-                setSliderTitle(Kontrast, str);
+                double[] zahlen ={0, 0.2,0.4, 0.8, 1, 2, 4, 6, 8, 10};
+                kontrast = zahlen[slider.getValue()];
+                String atr = "Kontrast " + kontrast;
+                setSliderTitle(Kontrast, atr);
             }
             if (slider == Saettigung) {
-                saettigung = slider.getValue();
+                double[] zahlen ={0, 0.25,0.5, 0.75, 1, 2, 3, 4, 5};
+                saettigung = zahlen[slider.getValue()];
                 String str = "Sättigung " + saettigung;
                 setSliderTitle(Saettigung, str);
             }
@@ -177,35 +179,53 @@ public class U2_S583615 implements PlugIn {
 
 
                     // anstelle dieser drei Zeilen später hier die Farbtransformation durchführen,
-                    double y1 = 0.299*r+0.587*g+0.144*b;
-                    double u = (b-y1)*0.493;
-                    double v = (r-y1)*0.877;
+                    int y1 = (int)(0.299*r+0.587*g+0.144*b);
+                    int u = (int)((b-y1)*0.493);
+                    int v = (int)((r-y1)*0.877);
 
-                    r =(int)(y1 + v/0.877);
-                    b= (int)( y1 + u/0.493);
-                    g= (int)(1/0.587 * y1 - 0.299/0.587*r - 0.114/0.587 * b);
+
 
                     // die Y Cb Cr -Werte verändern und dann wieder zurücktransformieren
-                    int rn = (int) (r + brightness);
+                    y1 = (int) (y1 + brightness);
+
+
+                    // Kontrast
+
+                    y1= (int)(kontrast*(y1-128)+128);
+                    //Sättigung
+
+                    u=(int)(u*saettigung);
+                    v=(int)(v*saettigung);
+                    // HUE
+                    double sin = Math.sin(Math.toRadians(hue));
+                    double cos = Math.cos(Math.toRadians(hue));
+
+                    u=(int)(u* cos - v *sin);
+                    v=(int)(u*sin+v*cos);
+
+
+
+                    // Hier muessen die neuen RGB-Werte wieder auf den Bereich von 0 bis 255 begrenzt werden
+
+                    int  rn =(int)(y1 + v/0.877);
+                    int bn= (int)( y1 + u/0.493);
+                    int gn= (int)(1/0.587 * y1 - 0.299/0.587*r - 0.114/0.587 * bn);
+
                     if (rn>255){
                         rn = 255;
                     }else if ( rn<0){
                         rn=0;
                     }
-                    int gn = (int) (g + brightness);
                     if (gn>255){
                         gn = 255;
                     }else if ( gn<0){
                         gn=0;
                     }
-                    int bn = (int) (b + brightness);
                     if (bn>255){
                         bn = 255;
                     }else if ( bn<0){
                         bn=0;
                     }
-
-                    // Hier muessen die neuen RGB-Werte wieder auf den Bereich von 0 bis 255 begrenzt werden
 
                     pixels[pos] = (0xFF<<24) | (rn<<16) | (gn<<8) | bn;
                 }
